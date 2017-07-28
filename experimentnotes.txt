@@ -1,0 +1,102 @@
+Questions in code -ImportanceUpdatingAgent - Master
+Lobe variable names - line 72-90
+Move parameters/variables to config file? - line 72-95
+Importance updating agent line 142, eventually eliminate stimulus in favor of direct STI
+Carefully look at rent_exp equations line 628. Multiplier role? Log and EXP.
+Opencog config file, line 29, typo for simpleImportanceDiffusionAgent.
+Questions in code -WageCollectionAgent - ECANrefactoring
+STIFundsBuffer is acting more like a target goal for the STI in the atomspace.
+Questions in code -StochasticImportantDiffusionAgent- ECANrefactoring
+Line 147, would like to see random atom being chosen by proportional STI.
+Line 132, create a variable and move to config file for the number 3.
+Line 125, why is the wait statement for 100 written this way? Should the 100 be in the config file as a variable.
+Line 211, should this 1.0f be in config file?
+Line 215, should this variable declaration be in config file?
+Line 224-253, Check all numbers to determine if variables in the config file are needed instead.
+Line 224, Is this comment accurate? Should 0.5 be 0.0?
+Line 219, what is the range of the values for the asymmetric hebbian link?
+Matt, read the consume method over the weekend!
+Questions in code -MinMaxSTIUpdatingAgent- ECANrefactoring
+Line 97, Typo, maxSTISeen should be minSTISeen
+
+Questions in code -HebbianUpdatingAgent- ECANrefactoring
+Line 118, put variable in config file.
+Cleanup code with new equations.
+Normalize STI from [min, max] to [-1,1]:
+norm=2(max-min) • ((s-min))-1
+Why are we diffusing the way we are?
+
+Updating Hebbian Links
+matts equation:
+        denominator = ( tcDecayRate * normsti_i ) + ((1 - tcDecayRate ) * oldsti ); // h'_s
+        tc = (tcDecayRate * normsti_i * normsti_j + (1.0f - tcDecayRate) * old_tc) / denominator;
+        tc = std::min(std::max(tc,0.0f),1.0f);
+Current equation:
+    tc = (tcDecayRate * normsti_i * normsti_j + (1.0f - tcDecayRate) * old_tc);
+Roman’s equation:
+        tc = tcDecayRate * (normsti_i * normsti_j + (( normsti_j - normsti_i) * abs(normsti_j - normsti_i)) + (1 - tcDecayRate) * old_tc);
+We encountered an issue with hst weakening far more often than strengthening. This was due to (1-decay)hst being a linear probability and decay(s)(t)being a quadratic probability. This was solved with this updated equation:
+h'st =decay • (s)(t) + (1-decay)hst 
+Or
+h'st =decay • (s+t)2 + (1-decay)hst
+We also discussed the four cases that Dr. Ikle has brought up regarding the possible choices of whether or not to update. We decided that the only time this update will occur is when the source is in the AF. We are now discussing different ways to update the hebbian links more frequently inside the attention focus, but still update the links outside of the AF.
+
+
+Some new new thoughts: We have normSTI(s) and normSTI(t) which represent P(s) and P(t). We also have the old value for h_st ~ P(t|s) and I think we can actually assume we have an old value for h_(~s)t. Given the new normSTI(s) and normSTI(t) values together with the old values for h_st and h_(~s)t using (ignoring decay for the moment) h’_st = [normSTI(t) - (1-normSTI(s))*h_(~s)t]/normSTI(s) and h’_(~s)t = [normSTI(t) - normSTI(s)*h_st]/(1-normSTI(s)). For intial h_st and h_(~s)t values from the very first (s, t) pair, I suppose we can use h_st = st, and h_(~s)t = (1-s)t.
+
+Overview of Diffusion in the Attentional Focus
+-- Choose atom in AF at random
+--Get the target set of the source atom, 
+--Update link strengths
+--Diffuse across the links from s to t
+
+After talking to Ben, he has an updated version of the original equation for updating hebbian links. Here is the equation:
+
+h'st=decay • NormSTI(s) • NormSTI(t) + (1-decay) • hstdecay • NormSTI(s) + (1-decay) • hs
+
+All node STI values should be normalized from [recentMinSTI, recentMaxSTI] into [0, 1] using:
+
+normSTI(s) = (s-recentMinSTI)/(recentMaxSTI-recentMinSTI)
+Confidence
+
+Confidence = countcount + k   
+
+where k is the look ahead parameter 
+And count is the # of times the relation has been updated
+
+
+**All files below are on the laptop ASU NAO #2
+Files w/ Changes for Hebbian Updating
+Atomspace: 
+Atom.h
+     Under /ECAN_experiment/atomspace/opencog/truthvalue
+AttentionValue.cc & AttentionValue.h
+
+Opencog:
+      Under /ECAN_experiment/opencog/opencog/attention or Master_Opencog/opencog/opencog/attention
+HebbianUpdatingAgent.cc & HebbianUpdatingAgent.h
+
+      Under /ECAN_experiment/opencog/opencog/attention/experiment or Master_Opencog/opencog/experiments/attention
+ExperimentSetupModule.cc
+
+      Under /ECAN_experiment/opencog/lib or Master_Opencog/opencog/experiments/attention/
+opencog.conf
+
+
+Closing Thoughts
+With integrating opencog/ros
+Face recognition
+Stimulation
+Refer to comments in SentenceGenStimulateAgent.cc & .h under /ECAN_experiment/opencog/opencog/attention/experiment
+Still under construction
+Two file types
+One with the structure
+Header: # of groups, # in groups
+groups_id.data as example
+Other with the data stream
+Timestamp, Face ID, # of faces in view 
+facestream.data as example
+Experiment build
+Started reading in files and setting structures
+ExperimentSetupModule.cc & .h
+
